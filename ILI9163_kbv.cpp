@@ -1,4 +1,5 @@
-﻿#define __OFFSET 32      //for Red 128x128 module
+﻿#define __OFFSET 0      //for Black 128x128 module
+//#define __OFFSET 32      //for Red 128x128 module
 
 #include "ILI9163_kbv.h"
 #include "serial_kbv.h"
