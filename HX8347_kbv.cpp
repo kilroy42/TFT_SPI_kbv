@@ -338,9 +338,11 @@ void HX8347_kbv::invertDisplay(bool i)
     
 void HX8347_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
-    int16_t vsp = top + offset;      // vertical start position
-	if (vsp < 0)
-        vsp += HEIGHT;       //keep in unsigned range
+    int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
+    int16_t vsp;
+    vsp = top + offset; // vertical start position
+    if (offset < 0)
+        vsp += scrollines;          //keep in unsigned range
     WriteCmdData(0x01, 8);   //VLE
     WriteCmdDataPair(0x0E, top);        //TOP
     WriteCmdDataPair(0x10, scrollines);

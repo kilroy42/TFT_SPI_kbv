@@ -1,8 +1,7 @@
 ﻿#include "ST7735_kbv.h"
 #include "serial_kbv.h"
 
-//ST7735_kbv::ST7735_kbv():Adafruit_GFX(128, 160)
-ST7735_kbv::ST7735_kbv():Adafruit_GFX(128, 128)
+ST7735_kbv::ST7735_kbv():Adafruit_GFX(128, 160)
 {
     INIT();
     CS_IDLE;
@@ -270,15 +269,16 @@ void ST7735_kbv::invertDisplay(boolean i)
 
 void ST7735_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
-    int16_t vsp = top + offset;      // vertical start position
-	if (vsp < 0)
-        vsp += HEIGHT;       //keep in unsigned range
-
+    int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
+    int16_t vsp;
+    vsp = top + offset; // vertical start position
+    if (offset < 0)
+        vsp += scrollines;          //keep in unsigned range
     CS_ACTIVE;
     WriteCmd(0x0033);
     WriteData(top);             //TOP
     write16(scrollines);
-    write16(HEIGHT - top - scrollines);
+    write16(bfa);
 
     WriteCmdData(0x0037, vsp);       //VL#
 

@@ -269,10 +269,11 @@ void ILI9341_kbv::invertDisplay(boolean i)
     
 void ILI9341_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
-    int16_t vsp = top + offset;      // vertical start position
-    int16_t bfa = HEIGHT - top - scrollines;   // bottom fixed area
-	if (vsp < 0)
-        vsp += HEIGHT;       //keep in unsigned range
+    int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
+    int16_t vsp;
+    vsp = top + offset; // vertical start position
+    if (offset < 0)
+        vsp += scrollines;          //keep in unsigned range
 	CS_ACTIVE;
     WriteCmd( 0x0033);
 	WriteData(top);        //TOP
