@@ -145,13 +145,13 @@ void ILI9163_kbv::setRotation(uint8_t r)
     Adafruit_GFX::setRotation(r & 3);
     switch (rotation) {
     case 0:
-        mac = 0x0800;
+        mac = 0xD800;
         break;
-    case 1:
+    case 1:        //LANDSCAPE 90 degrees BLACK pcb
         mac = 0xB800;
         break;
     case 2:
-        mac = 0xD800;
+        mac = 0x0800;
         break;
     case 3:
         mac = 0x6800;

@@ -133,14 +133,14 @@ void ST7735_kbv::setRotation(uint8_t r)
     case 0:
         mac = 0xD800;
         break;
-    case 1:
-        mac = 0x6800;
+    case 1:        //LANDSCAPE 90 degrees
+        mac = 0xB800;
         break;
     case 2:
         mac = 0x0800;
         break;
     case 3:
-        mac = 0xB800;
+        mac = 0x6800;
         break;
     }
     WriteCmdData(ST7735_MADCTL, mac & ~0x0800);

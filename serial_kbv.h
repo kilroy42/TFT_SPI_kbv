@@ -20,6 +20,9 @@
 #define MOSI_HI    PIN_HIGH(SPI_PORT, MOSI_PIN)
 #define MOSI_OUT   PIN_OUTPUT(SPI_PORT, MOSI_PIN)
 #define MOSI_IN    PIN_INPUT(SPI_PORT, MOSI_PIN)
+#define LED_LO     PIN_LOW(LED_PORT, LED_PIN)
+#define LED_HI     PIN_HIGH(LED_PORT, LED_PIN)
+#define LED_OUT    PIN_OUTPUT(LED_PORT, LED_PIN)
 
 #define wait_ms(ms)  delay(ms)
 #define xchg8(x)     xchg8_1(x)
@@ -30,6 +33,30 @@
 static uint8_t spibuf[16];
 
 #if 0
+#elif defined(ILI9225_KBV_H_) && defined(__AVR_ATmega328P__)
+#define LED_PORT PORTC
+#define LED_PIN  PC0
+#define CD_PORT PORTC
+#define CD_PIN  PC3
+#define CS_PORT PORTC
+#define CS_PIN  PC5
+#define RESET_PORT PORTC
+#define RESET_PIN  PC4
+#define SD_PORT PORTD
+#define SD_PIN  PD4
+#define SPI_PORT PORTC
+#define MOSI_PIN PC2
+#define SCK_PIN  PC1
+
+#define spi_init()
+#define SPCRVAL ((1<<SPE)|(1<<MSTR)|(0<<CPHA)|(0<<SPR0))
+#define SETDDR  {LED_OUT; SCK_OUT; MOSI_OUT; CD_OUTPUT; RESET_OUTPUT; CS_OUTPUT; }
+#define INIT()  { CS_IDLE; RESET_IDLE; LED_HI; SETDDR; spi_init(); }
+
+#define PIN_LOW(p, b)        (p) &= ~(1<<(b))
+#define PIN_HIGH(p, b)       (p) |= (1<<(b))
+#define PIN_OUTPUT(p, b)     *(&p-1) |= (1<<(b))
+
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168PB__)
 #define CD_PORT PORTB
 #define CD_PIN  PB1

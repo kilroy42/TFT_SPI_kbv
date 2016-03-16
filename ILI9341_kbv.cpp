@@ -139,14 +139,14 @@ void ILI9341_kbv::setRotation(uint8_t r)
     case 0:
         mac = 0x0800;
         break;
-    case 1:
-        mac = 0xB800;
+    case 1:        //LANDSCAPE 90 degrees 
+        mac = 0x6800;
         break;
     case 2:
         mac = 0xD800;
         break;
     case 3:
-        mac = 0x6800;
+        mac = 0xB800;
         break;
     }
     WriteCmdData(ILI9341_CMD_MEMORY_ACCESS_CONTROL, mac);
