@@ -78,10 +78,10 @@ void ILI9225_kbv::WriteCmdData(uint16_t cmd, uint16_t dat)
 #define ILI9225_VERTICAL_SCROLL_CTRL3   (0x33u)  // Vertical Scroll Control 3 Register
 #define ILI9225_PARTIAL_DRIVING_POS1    (0x34u)  // Partial Driving Position 1 Register
 #define ILI9225_PARTIAL_DRIVING_POS2    (0x35u)  // Partial Driving Position 2 Register
-#define ILI9225_HORIZONTAL_WINDOW_ADDR1 (0x36u)  // Horizontal Address Start Position
-#define ILI9225_HORIZONTAL_WINDOW_ADDR2	(0x37u)  // Horizontal Address End Position
-#define ILI9225_VERTICAL_WINDOW_ADDR1   (0x38u)  // Vertical Address Start Position
-#define ILI9225_VERTICAL_WINDOW_ADDR2   (0x39u)  // Vertical Address End Position
+#define ILI9225_HORIZONTAL_WINDOW_ADDR1 (0x36u)  // Horizontal Address END Position   HEA
+#define ILI9225_HORIZONTAL_WINDOW_ADDR2	(0x37u)  // Horizontal Address START Position HSA
+#define ILI9225_VERTICAL_WINDOW_ADDR1   (0x38u)  // Vertical Address END Position     VEA
+#define ILI9225_VERTICAL_WINDOW_ADDR2   (0x39u)  // Vertical Address START Position   VSA
 #define ILI9225_GAMMA_CTRL1            	(0x50u)  // Gamma Control 1
 #define ILI9225_GAMMA_CTRL2             (0x51u)  // Gamma Control 2
 #define ILI9225_GAMMA_CTRL3            	(0x52u)  // Gamma Control 3
