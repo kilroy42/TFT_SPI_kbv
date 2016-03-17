@@ -19,7 +19,7 @@ class ILI9225_kbv : public Adafruit_GFX {
 	virtual void     drawPixel(int16_t x, int16_t y, uint16_t color);  // and these three
 	void     WriteCmdData(uint16_t cmd, uint16_t dat);                 // public methods !!!
 	uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3); }
-	uint16_t readID(void) { return 0x9341; }
+	uint16_t readID(void) { return 0x9225; }
 
 	virtual void     fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 	virtual void     drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) { fillRect(x, y, 1, h, color); }

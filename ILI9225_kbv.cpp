@@ -1,10 +1,10 @@
 #include "ILI9225_kbv.h"
 #include "serial_kbv.h"
 
-
+/*
 #undef WriteCmd
 #define WriteCmd(x)  { CD_COMMAND; write16(x); }
-
+*/
 static uint8_t _MC, _MP, _SC, _EC, _SP, _EP;
 
 static void xchg8_1(uint8_t c) 
@@ -24,10 +24,10 @@ static inline void write16_N(uint16_t color, int16_t n)
 {
     uint8_t hi = color >> 8, lo = color;
     while (n-- > 0) {
-        CS_ACTIVE;
+//        CS_ACTIVE;
 		xchg8_1(hi);
         xchg8_1(lo);
-		CS_IDLE;
+//		CS_IDLE;
 	}
 }
 
@@ -131,16 +131,17 @@ void ILI9225_kbv::setRotation(uint8_t r)
     }
     if (mac & 0x2000) {
 	    _MC = ILI9225_RAM_ADDR_SET2, _MP = ILI9225_RAM_ADDR_SET1;
-		_SC = ILI9225_VERTICAL_WINDOW_ADDR1, _EC = ILI9225_VERTICAL_WINDOW_ADDR2; 
-		_SP = ILI9225_HORIZONTAL_WINDOW_ADDR1, _EP = ILI9225_HORIZONTAL_WINDOW_ADDR2;
+		_SC = ILI9225_VERTICAL_WINDOW_ADDR2, _EC = ILI9225_VERTICAL_WINDOW_ADDR1; 
+		_SP = ILI9225_HORIZONTAL_WINDOW_ADDR2, _EP = ILI9225_HORIZONTAL_WINDOW_ADDR1;
          WriteCmdData(ILI9225_ENTRY_MODE, 0x1038);
 	} else {
 	    _MC = ILI9225_RAM_ADDR_SET1, _MP = ILI9225_RAM_ADDR_SET2;
-		_SC = ILI9225_HORIZONTAL_WINDOW_ADDR1, _EC = ILI9225_HORIZONTAL_WINDOW_ADDR2;
-		_SP = ILI9225_VERTICAL_WINDOW_ADDR1, _EP = ILI9225_VERTICAL_WINDOW_ADDR2; 
+		_SC = ILI9225_HORIZONTAL_WINDOW_ADDR2, _EC = ILI9225_HORIZONTAL_WINDOW_ADDR1;
+		_SP = ILI9225_VERTICAL_WINDOW_ADDR2, _EP = ILI9225_VERTICAL_WINDOW_ADDR1; 
          WriteCmdData(ILI9225_ENTRY_MODE, 0x1030);
 	}
-    WriteCmdData(ILI9225_DRIVER_OUTPUT_CTRL, ((mac & 0xC000) >> 6) | 0x001C);
+    mac ^= 0x4000;   //flip SS
+	WriteCmdData(ILI9225_DRIVER_OUTPUT_CTRL, ((mac & 0xC000) >> 6) | 0x001C);
 }
 
 void ILI9225_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
@@ -159,6 +160,8 @@ void ILI9225_kbv::setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
     WriteCmdData(_EC, x1);
     WriteCmdData(_SP, y);
     WriteCmdData(_EP, y1);
+    WriteCmdData(_MC, x);
+    WriteCmdData(_MP, y);
 }
 
 void ILI9225_kbv::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
@@ -231,20 +234,21 @@ void ILI9225_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
 
 void ILI9225_kbv::invertDisplay(boolean i)
 {
-//    WriteCmdData(i ? ILI9225C_INVON : ILI9225C_INVOFF, 0);
+    WriteCmdData(ILI9225_DISP_CTRL1, i ? 0x1013 : 0x1017);
 }
     
 void ILI9225_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
     int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
     int16_t vsp;
+    int16_t sea = top;
     vsp = top + offset; // vertical start position
     if (offset < 0)
         vsp += scrollines;          //keep in unsigned range
-    WriteCmdData(ILI9225_VERTICAL_SCROLL_CTRL1, top);       //SEA
-    WriteCmdData(ILI9225_VERTICAL_SCROLL_CTRL2, scrollines);       //SSA
-    WriteCmdData(ILI9225_VERTICAL_SCROLL_CTRL3, bfa);       //SST
-    WriteCmdData(ILI9225_VERTICAL_SCROLL_CTRL1, vsp);       //VSP
+    sea = top + scrollines - 1;
+    WriteCmdData(ILI9225_VERTICAL_SCROLL_CTRL1, sea);       //SEA
+    WriteCmdData(ILI9225_VERTICAL_SCROLL_CTRL2, top);       //SSA
+    WriteCmdData(ILI9225_VERTICAL_SCROLL_CTRL3, vsp - top);       //SST
 }
 
 #define TFTLCD_DELAY 0xFFFF
