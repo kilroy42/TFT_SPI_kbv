@@ -1,5 +1,5 @@
-﻿#define __OFFSET 0      //for Black 128x128 module
-//#define __OFFSET 32      //for Red 128x128 module
+﻿//#define __OFFSET 0      //for Black 128x128 module
+#define __OFFSET 32      //for Red 128x128 module
 
 #include "ILI9163_kbv.h"
 #include "serial_kbv.h"
@@ -145,16 +145,16 @@ void ILI9163_kbv::setRotation(uint8_t r)
     Adafruit_GFX::setRotation(r & 3);
     switch (rotation) {
     case 0:
-        mac = 0xD800;
-        break;
-    case 1:        //LANDSCAPE 90 degrees BLACK pcb
-        mac = 0xB800;
-        break;
-    case 2:
         mac = 0x0800;
         break;
-    case 3:
+    case 1:        //LANDSCAPE 90 degrees BLACK pcb
         mac = 0x6800;
+        break;
+    case 2:
+        mac = 0xD800;
+        break;
+    case 3:
+        mac = 0xB800;
         break;
     }
     WriteCmdData(ILI9163_MADCTL, mac);
@@ -168,7 +168,7 @@ void ILI9163_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
     if (x < 0 || y < 0 || x >= width() || y >= height())
         return;
 	if (rotation == 0) y += __OFFSET;
-	if (rotation == 3) x += __OFFSET;
+	if (rotation == 1) x += __OFFSET;
     CS_ACTIVE;
     WriteCmd(ILI9163_CASET);
     spibuf[0] = x >> 8;
@@ -191,7 +191,7 @@ void ILI9163_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
 void ILI9163_kbv::setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
 {
 	if (rotation == 0) y += __OFFSET, y1 += __OFFSET;
-	if (rotation == 3) x += __OFFSET, x1 += __OFFSET;
+	if (rotation == 1) x += __OFFSET, x1 += __OFFSET;
     CS_ACTIVE;
     WriteCmd(ILI9163_CASET);
     spibuf[0] = x >> 8;
@@ -289,8 +289,8 @@ void ILI9163_kbv::invertDisplay(boolean i)
 
 void ILI9163_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
-    if (rotation == 0 || rotation == 3) top += __OFFSET;
-    int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
+    if (rotation == 0 || rotation == 1) top += __OFFSET;
+    int16_t bfa = HEIGHT + __OFFSET - top - scrollines;  // bottom fixed area
     int16_t vsp;
     vsp = top + offset; // vertical start position
     if (offset < 0)
@@ -321,9 +321,14 @@ const uint8_t PROGMEM table9163C[] = {
     (CMD_GAMRSEL), 1, 0x01,
     TFTLCD_DELAY, 1,
     (ILI9163_NORON), 0,         //Normal
-    (CMD_DFUNCTR), 2, 0xFF, 0x06, //Display Function set 5 ??NL
+//    (CMD_DFUNCTR), 2, 0xFF, 0x06, //Display Function set 5 ??NL
+#if __OFFSET == 0
+    (CMD_SDRVDIR), 1, 0x01,
+    (CMD_GDRVDIR), 1, 0x01,
+#else
     (CMD_SDRVDIR), 1, 0x00,
     (CMD_GDRVDIR), 1, 0x00,
+#endif
 	(ILI9163_GMCTRP1), 16,
     0x0f, 0x1a, 0x0f, 0x18, 0x2f, 0x28, 0x20, 0x22, 0x1f, 0x1b, 0x23, 0x37,
     0x00, 0x07, 0x02, 0x10,
