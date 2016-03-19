@@ -57,6 +57,30 @@ static uint8_t spibuf[16];
 #define PIN_HIGH(p, b)       (p) |= (1<<(b))
 #define PIN_OUTPUT(p, b)     *(&p-1) |= (1<<(b))
 
+#elif defined(ILI9225_KBV_H_) && defined(__AVR_ATmega2560__)
+#define LED_PORT PORTF
+#define LED_PIN  PF0
+#define CD_PORT PORTF
+#define CD_PIN  PF3
+#define CS_PORT PORTF
+#define CS_PIN  PF5
+#define RESET_PORT PORTF
+#define RESET_PIN  PF4
+#define SD_PORT PORTD
+#define SD_PIN  PD4
+#define SPI_PORT PORTF
+#define MOSI_PIN PF2
+#define SCK_PIN  PF1
+
+#define spi_init()
+#define SPCRVAL ((1<<SPE)|(1<<MSTR)|(0<<CPHA)|(0<<SPR0))
+#define SETDDR  {LED_OUT; SCK_OUT; MOSI_OUT; CD_OUTPUT; RESET_OUTPUT; CS_OUTPUT; }
+#define INIT()  { CS_IDLE; RESET_IDLE; LED_HI; SETDDR; spi_init(); }
+
+#define PIN_LOW(p, b)        (p) &= ~(1<<(b))
+#define PIN_HIGH(p, b)       (p) |= (1<<(b))
+#define PIN_OUTPUT(p, b)     *(&p-1) |= (1<<(b))
+
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168PB__)
 #define CD_PORT PORTB
 #define CD_PIN  PB1
