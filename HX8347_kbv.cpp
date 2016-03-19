@@ -222,13 +222,13 @@ void HX8347_kbv::setRotation(uint8_t r)
             mac = 0x0800;   // BGR=1
             break;
         case 1:
-            mac = 0xB800;   //MY=1, MX=0, MV=1, ML=1, BGR=1
+            mac = 0x6800;   //MY=0, MX=1, MV=0, ML=0, BGR=1
             break;
         case 2:
             mac = 0xD800;   //MY=1, MX=1, MV=0, ML=1, BGR=1
             break;
         case 3:
-            mac = 0x6800;   //MY=0, MX=1, MV=0, ML=0, BGR=1
+            mac = 0xB800;   //MY=1, MX=0, MV=1, ML=1, BGR=1
             break;
     }
     WriteCmdData(HX8347G_MEMACCESS, mac >> 8);
