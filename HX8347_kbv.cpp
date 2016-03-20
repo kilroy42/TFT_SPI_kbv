@@ -340,6 +340,7 @@ void HX8347_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
     int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
     int16_t vsp;
+    if (offset <= -scrollines || offset >= scrollines) offset = 0; //valid scroll
     vsp = top + offset; // vertical start position
     if (offset < 0)
         vsp += scrollines;          //keep in unsigned range
