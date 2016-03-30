@@ -15,7 +15,7 @@ class ST7735_kbv : public Adafruit_GFX {
 	public:
 	ST7735_kbv();
 	void     reset(void);                                       // you only need the constructor
-	void     begin(uint16_t ID);                                       // you only need the constructor
+	void     begin(uint16_t ID=0x7735);                                       // you only need the constructor
 	virtual void     drawPixel(int16_t x, int16_t y, uint16_t color);  // and these three
 	void     WriteCmdData(uint16_t cmd, uint16_t dat);                 // public methods !!!
 	uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3); }
