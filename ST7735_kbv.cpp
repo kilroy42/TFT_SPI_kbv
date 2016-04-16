@@ -1,9 +1,10 @@
 ﻿#include "ST7735_kbv.h"
 #include "serial_kbv.h"
 
-ST7735_kbv::ST7735_kbv():Adafruit_GFX(128, 160)
+ST7735_kbv::ST7735_kbv(int w, int h):Adafruit_GFX(w, h)
 {
-    INIT();
+    __OFFSET = (h == 128) ? 32 : 0;
+	INIT();
     CS_IDLE;
     RESET_IDLE;
 }
@@ -143,7 +144,8 @@ void ST7735_kbv::setRotation(uint8_t r)
         mac = 0x6800;
         break;
     }
-    WriteCmdData(ST7735_MADCTL, mac & ~0x0800);
+	if (__OFFSET == 0) mac ^= 0x0800;
+    WriteCmdData(ST7735_MADCTL, mac);
 }
 
 void ST7735_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
@@ -151,6 +153,8 @@ void ST7735_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
     // ILI934X just plots at edge if you try to write outside of the box:
     if (x < 0 || y < 0 || x >= width() || y >= height())
         return;
+	if (rotation == 0) y += __OFFSET;
+	if (rotation == 1) x += __OFFSET;
     CS_ACTIVE;
     WriteCmd(ST7735_CASET);
     spibuf[0] = x >> 8;
@@ -172,6 +176,8 @@ void ST7735_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
 
 void ST7735_kbv::setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
 {
+	if (rotation == 0) y += __OFFSET, y1 += __OFFSET;
+	if (rotation == 1) x += __OFFSET, x1 += __OFFSET;
     CS_ACTIVE;
     WriteCmd(ST7735_CASET);
     spibuf[0] = x >> 8;
@@ -269,7 +275,8 @@ void ST7735_kbv::invertDisplay(boolean i)
 
 void ST7735_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
-    int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
+    if (rotation == 0 || rotation == 1) top += __OFFSET;
+    int16_t bfa = HEIGHT + __OFFSET - top - scrollines;  // bottom fixed area
     int16_t vsp;
     vsp = top + offset; // vertical start position
     if (offset < 0)
