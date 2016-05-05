@@ -18,7 +18,8 @@ class ST7735X_kbv : public Adafruit_GFX {
 	void     reset(void);                                       // you only need the constructor
 	void     begin(uint16_t ID=0x7735);                                       // you only need the constructor
 	virtual void     drawPixel(int16_t x, int16_t y, uint16_t color);  // and these three
-	void     WriteCmdData(uint16_t cmd, uint16_t dat);                 // public methods !!!
+	void     WriteCmdData(uint16_t cmd, uint16_t dat);                 // ?public methods !!!
+    void     pushCommand(uint16_t cmd, uint8_t * block, int8_t N);
 	uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3); }
 	uint16_t readID(void);
 
@@ -42,7 +43,7 @@ class ST7735X_kbv : public Adafruit_GFX {
 	
 	private:
 	uint16_t        _lcd_ID;
-	uint8_t         __OFFSET;
+	uint8_t         _lcd_xor, _is7735, __OFFSET;
 };
 
 #endif
