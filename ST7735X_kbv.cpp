@@ -1,28 +1,40 @@
 ﻿#include "ST7735X_kbv.h"
 #include "serial_kbv.h"
 
+static uint8_t done_reset;
+
 ST7735X_kbv::ST7735X_kbv(int w, int h):Adafruit_GFX(w, h)
 {
-    __OFFSET = (h == 128) ? 32 : 0;
-	INIT();
-    CS_IDLE;
-    RESET_IDLE;
 }
 
 void ST7735X_kbv::reset(void)
 {
+	INIT();
+    CS_IDLE;
+    RESET_IDLE;
     wait_ms(50);
     RESET_ACTIVE;
     wait_ms(100);
     RESET_IDLE;
     wait_ms(100);
+	done_reset = 1;
 }
-
+/*
 void ST7735X_kbv::WriteCmdData(uint16_t cmd, uint16_t dat)
 {
     CS_ACTIVE;
     WriteCmd(cmd);
     WriteData(dat);
+    CS_IDLE;
+}
+*/
+void ST7735X_kbv::pushCommand(uint16_t cmd, uint8_t * block, int8_t N)
+{
+    uint16_t color;
+    CS_ACTIVE;
+    WriteCmd(cmd);
+    CD_DATA;
+	write8_block(block, N);
     CS_IDLE;
 }
 
@@ -54,6 +66,7 @@ uint32_t ST7735X_kbv::readReg32(uint16_t reg)
 
 uint16_t ST7735X_kbv::readID(void)
 {
+	if (!done_reset) reset();
     return readRegister(4) >> 8;	
 }
 
@@ -161,13 +174,15 @@ int16_t ST7735X_kbv::readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w,
 {
 	uint8_t r, g, b;
 	int16_t n = w * h;    // we are NEVER going to read > 32k pixels at once
+	uint8_t colmod = 0x66;
+	pushCommand(ST7735X_COLMOD, &colmod, 1);
 	setAddrWindow(x, y, x + w - 1, y + h - 1);
 	CS_ACTIVE;
 	WriteCmd(ST7735X_RAMRD);
 	CD_DATA;
 	SDIO_INMODE();        // do this while CS is Active
 
-	r = readbits(9);	  // needs 1 dummy read (8) for ILI9163
+	r = readbits(8 + _is7735);	  //(8) for ILI9163, (9) for ST7735
 	while (n-- > 0) {
 		r = readbits(8);
 		g = readbits(8);
@@ -177,29 +192,31 @@ int16_t ST7735X_kbv::readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w,
 	CS_IDLE;
 	SDIO_OUTMODE();      //do this when CS is Idle
     setAddrWindow(0, 0, width() - 1, height() - 1);
+	colmod = 0x05;
+	pushCommand(ST7735X_COLMOD, &colmod, 1);
     return 0;
 }
 
 void ST7735X_kbv::setRotation(uint8_t r)
 {
-    uint16_t mac = 0x800;
+    uint8_t mac = 0x00;
     Adafruit_GFX::setRotation(r & 3);
     switch (rotation) {
     case 0:
-        mac = 0xD800;
+        mac = 0xD8;
         break;
     case 1:        //LANDSCAPE 90 degrees
-        mac = 0xB800;
+        mac = 0x68;
         break;
     case 2:
-        mac = 0x0800;
+        mac = 0x08;
         break;
     case 3:
-        mac = 0x6800;
+        mac = 0xB8;
         break;
     }
-	if (__OFFSET == 0) mac ^= 0x0800;
-    WriteCmdData(ST7735X_MADCTL, mac);
+	mac ^= (_lcd_xor);
+    pushCommand(ST7735X_MADCTL, &mac, 1);
 }
 
 void ST7735X_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
@@ -208,7 +225,7 @@ void ST7735X_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
     if (x < 0 || y < 0 || x >= width() || y >= height())
         return;
 	if (rotation == 0) y += __OFFSET;
-	if (rotation == 1) x += __OFFSET;
+	if (rotation == 3) x += __OFFSET;
     CS_ACTIVE;
     WriteCmd(ST7735X_CASET);
     spibuf[0] = x >> 8;
@@ -231,7 +248,7 @@ void ST7735X_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
 void ST7735X_kbv::setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
 {
 	if (rotation == 0) y += __OFFSET, y1 += __OFFSET;
-	if (rotation == 1) x += __OFFSET, x1 += __OFFSET;
+	if (rotation == 3) x += __OFFSET, x1 += __OFFSET;
     CS_ACTIVE;
     WriteCmd(ST7735X_CASET);
     spibuf[0] = x >> 8;
@@ -324,25 +341,36 @@ void ST7735X_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
 
 void ST7735X_kbv::invertDisplay(boolean i)
 {
-    WriteCmdData(i ? ST7735X_INVON : ST7735X_INVOFF, 0);
+    pushCommand(i ? ST7735X_INVON : ST7735X_INVOFF, NULL, 0);
 }
 
 void ST7735X_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
-    if (rotation == 0 || rotation == 1) top += __OFFSET;
+    if (rotation == 0 || rotation == 3) top += __OFFSET;
     int16_t bfa = HEIGHT + __OFFSET - top - scrollines;  // bottom fixed area
     int16_t vsp;
     vsp = top + offset; // vertical start position
     if (offset < 0)
         vsp += scrollines;          //keep in unsigned range
-    CS_ACTIVE;
+    spibuf[0] = top>>8;
+	spibuf[1] = top;
+	spibuf[2] = scrollines>>8;
+	spibuf[3] = scrollines;
+	spibuf[4] = bfa>>8;
+	spibuf[5] = bfa;
+	pushCommand(0x33, spibuf, 6);
+    spibuf[0] = vsp>>8;
+	spibuf[1] = vsp;
+	pushCommand(0x37, spibuf, 2);
+/*
+	CS_ACTIVE;
     WriteCmd(0x0033);
     WriteData(top);             //TOP
     write16(scrollines);
     write16(bfa);
 
     WriteCmdData(0x0037, vsp);       //VL#
-
+*/
 }
 
 #define TFTLCD_DELAY 0xFF
@@ -375,10 +403,51 @@ const uint8_t PROGMEM table7735S[] = {
     (ST7735X_GMCTRN1), 16,
     0x0f, 0x1b, 0x0f, 0x17, 0x33, 0x2c, 0x29, 0x2e, 0x30, 0x30, 0x39, 0x3f,
     0x00, 0x07, 0x03, 0x10,
+
     (ST7735X_CASET), 4, 0x00, 0x00, 0x00, 0x7f,
     (ST7735X_RASET), 4, 0x00, 0x00, 0x00, 0x9f,
-    (0xF0), 1, 0x01,            //Enable test command
+    (0xF0), 1, 0x00,            //Enable test command [01]
     (0xF6), 1, 0x00,            //Disable ram power save mode
+
+    (ST7735X_COLMOD), 1, 0x65,   //65k mode
+    (ST7735X_DISPON), 0,         //Display on
+};
+
+const uint8_t PROGMEM table9101[] = {
+    //  (COMMAND_BYTE), n, data_bytes....
+    (ST7735X_SWRESET), 0,        // software reset
+    TFTLCD_DELAY, 50,
+    (ST7735X_SLPOUT), 0,         //Sleep exit
+    TFTLCD_DELAY, 250,
+/*
+    //ST7735XR Frame Rate
+    (ST7735X_FRMCTR1), 3, 0x01, 0x2C, 0x2D,
+    (ST7735X_FRMCTR2), 3, 0x01, 0x2C, 0x2D,
+    (ST7735X_FRMCTR3), 6, 0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D,
+    (ST7735X_INVCTR), 1, 0x07,   //Column inversion
+    //ST7735XR Power Sequence
+    (ST7735X_PWCTR1), 3, 0xA2, 0x02, 0x84,
+    (ST7735X_PWCTR2), 1, 0xC5,
+    (ST7735X_PWCTR3), 2, 0x0A, 0x00,
+    (ST7735X_PWCTR4), 2, 0x8A, 0x2A,
+    (ST7735X_PWCTR5), 2, 0x8A, 0xEE,
+    (ST7735X_VMCTR1), 1, 0x0E,   //VCOM
+    (ST7735X_INVOFF), 0, //no inversion
+    //(ST7735X_MADCTL), 1, 0xC8, //MX, MY, RGB mode
+    (ST7735X_MADCTL), 1, 0x00,   //MX, MY, RGB mode
+    //ST7735XR Gamma Sequence
+    (ST7735X_GMCTRP1), 16,
+    0x0f, 0x1a, 0x0f, 0x18, 0x2f, 0x28, 0x20, 0x22, 0x1f, 0x1b, 0x23, 0x37,
+    0x00, 0x07, 0x02, 0x10,
+    (ST7735X_GMCTRN1), 16,
+    0x0f, 0x1b, 0x0f, 0x17, 0x33, 0x2c, 0x29, 0x2e, 0x30, 0x30, 0x39, 0x3f,
+    0x00, 0x07, 0x03, 0x10,
+
+    (ST7735X_CASET), 4, 0x00, 0x00, 0x00, 0x7f,
+    (ST7735X_RASET), 4, 0x00, 0x00, 0x00, 0x9f,
+*/
+//    (0xB0), 2, 0x00, 0xF0,           //RAMCTRL (B0h): RAM Control on ST7789V
+//    (0xF6), 1, 0x01, 0x00, 0x00,     //Interface Control (F6h) on ILI9341
     (ST7735X_COLMOD), 1, 0x05,   //65k mode
     (ST7735X_DISPON), 0,         //Display on
 };
@@ -399,8 +468,8 @@ const uint8_t PROGMEM table9163C[] = {
     (ILI9163_NORON), 0,         //Normal
 //    (CMD_DFUNCTR), 2, 0xFF, 0x06, //Display Function set 5 ??NL
 //#if __OFFSET == 0
-    (CMD_SDRVDIR), 1, 0x01,
-    (CMD_GDRVDIR), 1, 0x01,
+//    (CMD_SDRVDIR), 1, 0x01,
+//    (CMD_GDRVDIR), 1, 0x01,
 //#else
 //    (CMD_SDRVDIR), 1, 0x00,
 //    (CMD_GDRVDIR), 1, 0x00,
@@ -436,13 +505,42 @@ const uint8_t PROGMEM table9163C[] = {
 void ST7735X_kbv::begin(uint16_t ID)
 {
     _lcd_ID = ID;
+	_lcd_xor = 0x00;
     uint8_t *p = (uint8_t *) table7735S;
     int16_t size = sizeof(table7735S);
     reset();
     switch(ID) {
-	case 0x9163: p = (uint8_t *) table9163C; size = sizeof(table9163C); break;
-	case 0x7735: 
-	default: p = (uint8_t *) table7735S; size = sizeof(table7735S); break;
+	case 0x0091:    //wot readID()
+	case 0x9101:
+	    __OFFSET = 32;
+	    _lcd_xor = 0x00;
+		p = (uint8_t *) table9101;
+		size = sizeof(table9101);
+		break;
+	case 0x5480:     //wot readID()
+	case 0x9162:
+	    __OFFSET = 32;
+		_lcd_xor = 0xD0;
+		goto common_9163;
+	case 0x9163: 
+	    _lcd_xor = 0x00;
+common_9163:
+		p = (uint8_t *) table9163C;
+		size = sizeof(table9163C);
+		break;
+	case 0x7C89:
+	case 0x7734:
+	    __OFFSET = 32;
+	    _lcd_xor = 0x00;
+		goto common_7735;
+	case 0x7735:
+	default: 
+		_lcd_xor = 0x08;
+common_7735:
+	    _is7735 = 1;
+		p = (uint8_t *) table7735S;
+		size = sizeof(table7735S);
+		break;
     }
 	while (size > 0) {
         uint8_t cmd = pgm_read_byte(p++);
