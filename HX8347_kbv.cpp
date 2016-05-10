@@ -1,3 +1,4 @@
+#if defined(AVR)
 #include "HX8347_kbv.h"
 
 #if USE_MBED
@@ -498,3 +499,4 @@ void HX8347_kbv::begin(uint16_t ID)
     }
     setRotation(0);                //PORTRAIT
 }
+#endif

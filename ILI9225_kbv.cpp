@@ -1,3 +1,4 @@
+#if defined(_____AVR)
 #include "ILI9225_kbv.h"
 #include "serial_kbv.h"
 
@@ -338,3 +339,4 @@ void ILI9225_kbv::begin(uint16_t ID)
     init_table16(ILI9225_regValues, sizeof(ILI9225_regValues));
     setRotation(0);             //PORTRAIT
 }
+#endif
