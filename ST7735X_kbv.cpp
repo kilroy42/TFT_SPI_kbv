@@ -226,45 +226,31 @@ void ST7735X_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
         return;
 	if (rotation == 0) y += __OFFSET;
 	if (rotation == 3) x += __OFFSET;
-    CS_ACTIVE;
-    WriteCmd(ST7735X_CASET);
     spibuf[0] = x >> 8;
     spibuf[1] = x;
-    CD_DATA;
-    write8_block(spibuf, 2);
-    WriteCmd(ST7735X_RASET);
+	pushCommand(ST7735X_CASET, spibuf, 2);
     spibuf[0] = y >> 8;
     spibuf[1] = y;
-    CD_DATA;
-    write8_block(spibuf, 2);
-    WriteCmd(ST7735X_RAMWR);
+	pushCommand(ST7735X_RASET, spibuf, 2);
     spibuf[0] = color >> 8;
     spibuf[1] = color;
-    CD_DATA;
-    write8_block(spibuf, 2);
-    CS_IDLE;
+	pushCommand(ST7735X_RAMWR, spibuf, 2);
 }
 
 void ST7735X_kbv::setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
 {
 	if (rotation == 0) y += __OFFSET, y1 += __OFFSET;
 	if (rotation == 3) x += __OFFSET, x1 += __OFFSET;
-    CS_ACTIVE;
-    WriteCmd(ST7735X_CASET);
     spibuf[0] = x >> 8;
     spibuf[1] = x;
     spibuf[2] = x1 >> 8;
     spibuf[3] = x1;
-    CD_DATA;
-    write8_block(spibuf, 4);
-    WriteCmd(ST7735X_RASET);
+	pushCommand(ST7735X_CASET, spibuf, 4);
     spibuf[0] = y >> 8;
     spibuf[1] = y;
     spibuf[2] = y1 >> 8;
     spibuf[3] = y1;
-    CD_DATA;
-    write8_block(spibuf, 4);
-    CS_IDLE;
+	pushCommand(ST7735X_RASET, spibuf, 4);
 }
 
 void ST7735X_kbv::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
@@ -362,15 +348,6 @@ void ST7735X_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
     spibuf[0] = vsp>>8;
 	spibuf[1] = vsp;
 	pushCommand(0x37, spibuf, 2);
-/*
-	CS_ACTIVE;
-    WriteCmd(0x0033);
-    WriteData(top);             //TOP
-    write16(scrollines);
-    write16(bfa);
-
-    WriteCmdData(0x0037, vsp);       //VL#
-*/
 }
 
 #define TFTLCD_DELAY 0xFF
@@ -528,11 +505,11 @@ common_9163:
 		p = (uint8_t *) table9163C;
 		size = sizeof(table9163C);
 		break;
-	case 0x7C89:
 	case 0x7734:
 	    __OFFSET = 32;
 	    _lcd_xor = 0x00;
 		goto common_7735;
+	case 0x7C89:
 	case 0x7735:
 	default: 
 		_lcd_xor = 0x08;
