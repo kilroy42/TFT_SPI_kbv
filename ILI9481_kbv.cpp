@@ -154,10 +154,18 @@ void ILI9481_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
     if (x < 0 || y < 0 || x >= width() || y >= height())
         return;
     setAddrWindow(x, y, x, y);
+#if 1
+    CS_ACTIVE;
+	WriteCmd(ILI9481_CMD_MEMORY_WRITE);
+    CD_DATA;
+	write18_N(color, 1);
+    CS_IDLE;
+#else
 	spibuf[0] = (color >> 8);
     spibuf[1] = (color >> 3);
     spibuf[2] = (color << 3);
 	pushCommand(ILI9481_CMD_MEMORY_WRITE, spibuf, 3);
+#endif
 }
 
 void ILI9481_kbv::setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
