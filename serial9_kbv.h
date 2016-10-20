@@ -1,4 +1,7 @@
+// this file is only used for 9-bit bidirectional ILI9481
+
 #define USE_SPICLASS
+//#define KLUDGE_328P
 
 #define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
 #define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
@@ -38,7 +41,7 @@
 #include <SPI.h>
 static uint8_t spibuf[16];
 
-#if 1
+#if defined(KLUDGE_328P)
 #define CD_PORT PORTB
 #define CD_PIN  PB1
 #define CS_PORT PORTB
@@ -79,7 +82,7 @@ static uint8_t spibuf[16];
 
 static inline void write8(uint8_t val)
 {
-#if 1                                   // -90.0 sec
+#if defined(KLUDGE_328P)                // -90.0 sec
     SPCR = (1<<SPE)|(1<<MSTR);
 	SPSR = (1<<SPI2X);
 	SPDR = val;
@@ -112,7 +115,7 @@ static uint32_t readbits(uint8_t bits)
 
 static inline void write18_N(uint16_t color, int16_t n)
 {
-#if 1                                   // -15.5 sec
+#if defined(KLUDGE_328P)                // -15.5 sec
 	uint8_t r = (color >> 9) | 0x80, g = (color >> 5) | 0x40, b = color | 0x20;
 	while (n-- > 0) {
     SPCR = (1<<SPE)|(1<<MSTR);
