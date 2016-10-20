@@ -1,4 +1,4 @@
-//#define USE_SPICLASS
+#define USE_SPICLASS
 
 #define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
 #define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
@@ -54,7 +54,7 @@ static uint8_t spibuf[16];
 #define PIN_INPUT(p, b)      pinMode(b, INPUT_PULLUP)
 #define PIN_READ(p, b)       digitalRead(b)
 
-static SPISettings settings(21000000, MSBFIRST, SPI_MODE0);
+static SPISettings settings(42000000, MSBFIRST, SPI_MODE0);
 
 static inline uint8_t xchg8_1(uint8_t x)
 {
