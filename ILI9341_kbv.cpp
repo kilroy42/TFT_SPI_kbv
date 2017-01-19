@@ -78,6 +78,50 @@ void ILI9341_kbv::WriteCmdData(uint16_t cmd, uint16_t dat)
 #define ILI9341_CMD_READ_ID2                        0xDB
 #define ILI9341_CMD_READ_ID3                        0xDC
 
+#if 1
+uint8_t readReg8(uint8_t reg, uint8_t dat)
+{
+    uint8_t ret;
+    CD_COMMAND;
+    CS_ACTIVE;
+    xchg8(reg);
+    CD_DATA;                    //should do a flush()
+    ret = xchg8(dat);
+    CS_IDLE;
+    return ret;
+}
+
+uint8_t ILI9341_kbv::readcommand8(uint8_t reg, uint8_t idx)         //this is the same as Adafruit_ILI9341
+{
+    readReg8(0xD9, 0x10 | idx);
+    return readReg8(reg, 0xFF); 
+}
+    
+uint16_t ILI9341_kbv::readID(void)                          //{ return 0x9341; }
+{
+    return (readcommand8(0xD3, 2) << 8) | readcommand8(0xD3, 3);
+}
+    
+uint16_t ILI9341_kbv::readReg(uint16_t reg, uint8_t idx)     //note that this reads pairs of data bytes
+{
+    uint8_t h, l;
+    idx <<= 1;
+    h = readcommand8(reg, idx);
+    l = readcommand8(reg, idx + 1);
+    return (h << 8) | l;
+}
+
+uint32_t ILI9341_kbv::readReg32(uint16_t reg)
+{
+	uint32_t ret;
+    for (uint8_t idx = 0; idx < 4; idx++) {
+		ret <<= 8;
+		ret |= readcommand8(reg, idx);
+	}
+	return ret;
+}
+
+#else
 uint16_t ILI9341_kbv::readReg(uint16_t reg)
 {
     uint8_t h, l;
@@ -108,6 +152,7 @@ uint32_t ILI9341_kbv::readReg32(uint16_t reg)
 	CS_IDLE;
 	return ret;
 }
+#endif
 
 int16_t ILI9341_kbv::readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h)
 {
