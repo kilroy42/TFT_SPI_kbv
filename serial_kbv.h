@@ -1,10 +1,5 @@
 #define USE_SPICLASS
 
-#if defined(USE_SPICLASS)
-#warning Using Arduino SPI methods
-#include <SPI.h>                //include before write16() macro
-#endif
-
 #define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
 #define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
 #define CD_OUTPUT  PIN_OUTPUT(CD_PORT, CD_PIN)
@@ -29,15 +24,19 @@
 #define LED_HI     PIN_HIGH(LED_PORT, LED_PIN)
 #define LED_OUT    PIN_OUTPUT(LED_PORT, LED_PIN)
 
-#define wait_ms(ms)  delay(ms)
-#define xchg8(x)     xchg8_1(x)
-#define write16(x)   { write16_N(x, 1); }
-#define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); }
-#define WriteData(x) { CD_DATA; write16(x); }
-
 #if !defined(USE_SPICLASS)
 #include "serial_complex.h"
 #else
+
+#include <SPI.h>                //include before write16() macro
+#warning Using Arduino SPI methods
+
+#define wait_ms(ms)  delay(ms)
+#define xchg8(x)     xchg8_1(x)
+#define write16(x)   { write16_N(x, 1); }
+#define write24(x)   { write24_N(x, 1); }
+#define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); CD_DATA; }
+#define WriteData(x) { write16(x); }
 
 static uint8_t spibuf[16];
 
@@ -66,7 +65,7 @@ static uint8_t spibuf[16];
 #define PIN_INPUT(p, b)      pinMode(b, INPUT_PULLUP)
 #define PIN_READ(p, b)       digitalRead(b)
 
-static SPISettings settings(40000000, MSBFIRST, SPI_MODE0);
+static SPISettings settings(8000000, MSBFIRST, SPI_MODE0);
 
 static inline uint8_t xchg8_1(uint8_t x)
 {
@@ -95,26 +94,6 @@ static inline void write16_N(uint16_t color, int16_t n)
 	hilo[0] = color >> 8;
 	hilo[1] = color;
 	SPI.writePattern(hilo, 2, (uint32_t)n);
-#elif defined(BUM__SAM3X8E__)        //this is slower than 8-bit
-	while (n-- > 0) {
-		SPI.transfer16(color);
-	}
-#elif defined(TIT__SAM3X8E__)        //
-	uint16_t buf[33];
-	int16_t count = n;
-	if (n <= 0) return;
-	SPITransferMode mode = SPI_CONTINUE;
-	if (count > 32) count = 32;
-//	for (int i = 0; i < count; i++) buf[i] = color;
-	while (n > 0) {
-		n -= count;
-		if (n <= count) {
-			count = n;
-			mode = SPI_LAST;
-		}
-	    for (int i = 0; i < count; i++) buf[i] = color;
-		SPI.transfer((uint8_t*)buf, count*2, mode);
-	}
 #else
 	uint8_t hi = color >> 8, lo = color;
 	while (n-- > 0) {
@@ -124,10 +103,30 @@ static inline void write16_N(uint16_t color, int16_t n)
 #endif
 }
 
+static inline void write24_N(uint16_t color, int16_t n)
+{
+#if defined(ESP8266)
+    uint8_t rgb[3];
+	rgb[0] = color >> 8;
+	rgb[1] = color >> 3;
+	rgb[2] = color << 3;
+	SPI.writePattern(rgb, 3, (uint32_t)n);
+#else
+	uint8_t r = color >> 8, g = (color >> 3), b = color << 3;
+	while (n-- > 0) {
+		SPI.transfer(r);
+		SPI.transfer(g);
+		SPI.transfer(b);
+	}
+#endif
+}
+
 static inline void write8_block(uint8_t * block, int16_t n)
 {
 #if defined(ESP8266)
 	SPI.writeBytes(block, (uint32_t)n);
+#elif defined(__STM32F1__)
+    while (n-- > 0) SPI.transfer(*block++);
 #else
 	SPI.transfer(block, n);
 #endif
