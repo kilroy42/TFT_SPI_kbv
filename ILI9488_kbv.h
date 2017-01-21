@@ -20,8 +20,7 @@ class ILI9488_kbv : public Adafruit_GFX {
 //	void     WriteCmdData(uint16_t cmd, uint16_t dat);                 // public methods !!!
     void     pushCommand(uint16_t cmd, uint8_t * block, int8_t N);
 	uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3); }
-//	uint16_t readID(void) { return 0x9488; }
-	uint16_t readID(void) { return readReg32(0xD3) >> 8; }
+	uint16_t readID(void); // { return 0x9488; }
 
 	virtual void     fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 	virtual void     drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) { fillRect(x, y, 1, h, color); }
@@ -30,8 +29,9 @@ class ILI9488_kbv : public Adafruit_GFX {
 	virtual void     setRotation(uint8_t r);
 	virtual void     invertDisplay(boolean i);
 
-	uint16_t readReg(uint16_t reg);
-	uint32_t readReg32(uint16_t reg);
+	uint8_t readcommand8(uint8_t reg, uint8_t idx = 0);         //this is the same as Adafruit_ILI9341
+	uint16_t readReg(uint16_t reg, uint8_t idx = 0);            //note that this reads pairs of data bytes
+    uint32_t readReg32(uint16_t reg);
 	int16_t  readGRAM(int16_t x, int16_t y, uint16_t *block, int16_t w, int16_t h);
 	uint16_t readPixel(int16_t x, int16_t y) { uint16_t color; readGRAM(x, y, &color, 1, 1); return color; }
 	void     setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1);
@@ -42,7 +42,7 @@ class ILI9488_kbv : public Adafruit_GFX {
 	protected:
 	
 	private:
-	uint16_t        _lcd_ID, _lcd_xor;
+	uint16_t        _lcd_ID;
 };
 
 #endif
