@@ -3,15 +3,13 @@
 
 ILI9341_kbv::ILI9341_kbv():Adafruit_GFX(240, 320)
 {
-/*
-    INIT();
-    CS_IDLE;
-    RESET_IDLE;
-*/
 }
+
+static uint8_t done_reset;
 
 void ILI9341_kbv::reset(void)
 {
+    done_reset = 1;
     INIT();
     CS_IDLE;
     RESET_IDLE;
@@ -22,11 +20,12 @@ void ILI9341_kbv::reset(void)
 	wait_ms(100);
 }
 
-void ILI9341_kbv::WriteCmdData(uint16_t cmd, uint16_t dat)
+void ILI9341_kbv::pushCommand(uint16_t cmd, uint8_t * block, int8_t N)
 {
+    uint16_t color;
     CS_ACTIVE;
     WriteCmd(cmd);
-    WriteData(dat);
+	write8_block(block, N);
     CS_IDLE;
 }
 
@@ -78,15 +77,14 @@ void ILI9341_kbv::WriteCmdData(uint16_t cmd, uint16_t dat)
 #define ILI9341_CMD_READ_ID2                        0xDB
 #define ILI9341_CMD_READ_ID3                        0xDC
 
-#if 1
-uint8_t readReg8(uint8_t reg, uint8_t dat)
+static uint8_t readReg8(uint8_t reg, uint8_t dat)
 {
     uint8_t ret;
     CD_COMMAND;
     CS_ACTIVE;
     xchg8(reg);
-    CD_DATA;                    //should do a flush()
-    ret = xchg8(dat);
+	CD_DATA;                    //should do a flush()
+	ret = xchg8(dat);           //only safe to read @ SCK=16MHz
     CS_IDLE;
     return ret;
 }
@@ -99,7 +97,8 @@ uint8_t ILI9341_kbv::readcommand8(uint8_t reg, uint8_t idx)         //this is th
     
 uint16_t ILI9341_kbv::readID(void)                          //{ return 0x9341; }
 {
-    return (readcommand8(0xD3, 2) << 8) | readcommand8(0xD3, 3);
+    if (!done_reset) reset();
+	return (readcommand8(0xD3, 2) << 8) | readcommand8(0xD3, 3);
 }
     
 uint16_t ILI9341_kbv::readReg(uint16_t reg, uint8_t idx)     //note that this reads pairs of data bytes
@@ -121,39 +120,6 @@ uint32_t ILI9341_kbv::readReg32(uint16_t reg)
 	return ret;
 }
 
-#else
-uint16_t ILI9341_kbv::readReg(uint16_t reg)
-{
-    uint8_t h, l;
-    CS_ACTIVE;
-    WriteCmd(reg);
-    CD_DATA;                    //should do a flush()
-
-    // needs 1 dummy read
-    //     h = xchg8(0);    
-    h = xchg8(0xFF);
-    l = xchg8(0xFF);
-    CS_IDLE;
-    return (h << 8) | l;
-}
-
-uint32_t ILI9341_kbv::readReg32(uint16_t reg)
-{
-	uint32_t ret = 0;
-	CS_ACTIVE;
-	WriteCmd(reg);
-	CD_DATA;                    //should do a flush()
-
-	// needs 1 dummy read
-    for (uint8_t cnt = 5; cnt--; ) {
-		ret <<= 8;
-		ret |= xchg8(0);
-	}
-	CS_IDLE;
-	return ret;
-}
-#endif
-
 int16_t ILI9341_kbv::readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h)
 {
     uint8_t r, g, b;
@@ -161,7 +127,6 @@ int16_t ILI9341_kbv::readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w,
     setAddrWindow(x, y, x + w - 1, y + h - 1);
     CS_ACTIVE;
     WriteCmd(ILI9341_CMD_MEMORY_READ);
-    CD_DATA;
 
     // needs 1 dummy read
     r = xchg8(0xFF);
@@ -178,23 +143,23 @@ int16_t ILI9341_kbv::readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w,
 
 void ILI9341_kbv::setRotation(uint8_t r)
 {
-    uint16_t mac = 0x800;
+    uint8_t mac = 0x00;
     Adafruit_GFX::setRotation(r & 3);
     switch (rotation) {
     case 0:
-        mac = 0x0800;
+        mac = 0x08;
         break;
     case 1:        //LANDSCAPE 90 degrees 
-        mac = 0x6800;
+        mac = 0x68;
         break;
     case 2:
-        mac = 0xD800;
+        mac = 0xD8;
         break;
     case 3:
-        mac = 0xB800;
+        mac = 0xB8;
         break;
     }
-    WriteCmdData(ILI9341_CMD_MEMORY_ACCESS_CONTROL, mac);
+    pushCommand(ILI9341_CMD_MEMORY_ACCESS_CONTROL, &mac, 1);
 }
 
 void ILI9341_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
@@ -202,39 +167,24 @@ void ILI9341_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
     // ILI934X just plots at edge if you try to write outside of the box:
     if (x < 0 || y < 0 || x >= width() || y >= height())
         return;
-#if 0    // -0.22 sec
-    CS_ACTIVE;
-	WriteCmd(ILI9341_CMD_COLUMN_ADDRESS_SET);
-    WriteData(x);
-	WriteCmd(ILI9341_CMD_PAGE_ADDRESS_SET);
-    WriteData(y);
-    WriteCmd(ILI9341_CMD_MEMORY_WRITE);
-    WriteData(color);
-	CS_IDLE;
-#elif 1    // -0.13 sec
     CS_ACTIVE;
     WriteCmd(ILI9341_CMD_COLUMN_ADDRESS_SET);
-    spibuf[0] = x >> 8; spibuf[1] = x; CD_DATA; write8_block(spibuf, 2);
+    write16(x);
     WriteCmd(ILI9341_CMD_PAGE_ADDRESS_SET);
-    spibuf[0] = y >> 8; spibuf[1] = y; CD_DATA; write8_block(spibuf, 2);
+    write16(y);
     WriteCmd(ILI9341_CMD_MEMORY_WRITE);
-    spibuf[0] = color >> 8; spibuf[1] = color; CD_DATA; write8_block(spibuf, 2);
+    write16(color);
     CS_IDLE;
-#else
-    WriteCmdData(ILI9341_CMD_COLUMN_ADDRESS_SET, x);
-    WriteCmdData(ILI9341_CMD_PAGE_ADDRESS_SET, y);
-    WriteCmdData(ILI9341_CMD_MEMORY_WRITE, color);
-#endif
 }
 
 void ILI9341_kbv::setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1)
 {
     CS_ACTIVE;
     WriteCmd(ILI9341_CMD_COLUMN_ADDRESS_SET);
-    WriteData(x);
+    write16(x);
     write16(x1);
     WriteCmd(ILI9341_CMD_PAGE_ADDRESS_SET);
-    WriteData(y);
+    write16(y);
     write16(y1);
     CS_IDLE;
 }
@@ -265,7 +215,6 @@ void ILI9341_kbv::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t 
     setAddrWindow(x, y, x + w - 1, y + h - 1);
     CS_ACTIVE;
     WriteCmd(ILI9341_CMD_MEMORY_WRITE);
-    CD_DATA;
 	if (h > w) { end = h; h = w; w = end; } 
     while (h-- > 0) {
         write16_N(color, w);
@@ -281,7 +230,6 @@ void ILI9341_kbv::pushColors(uint16_t * block, int16_t n, bool first)
     if (first) {
         WriteCmd(ILI9341_CMD_MEMORY_WRITE);
     }
-    CD_DATA;
     while (n-- > 0) {
         color = *block++;
         write16(color);
@@ -297,7 +245,6 @@ void ILI9341_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
     if (first) {
         WriteCmd(ILI9341_CMD_MEMORY_WRITE);
     }
-    CD_DATA;
     while (n-- > 0) {
         l = pgm_read_byte(block++);
         h = pgm_read_byte(block++);
@@ -309,31 +256,33 @@ void ILI9341_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
 
 void ILI9341_kbv::invertDisplay(boolean i)
 {
-    WriteCmdData(i ? ILI9341_CMD_DISP_INVERSION_ON : ILI9341_CMD_DISP_INVERSION_OFF, 0);
+    pushCommand(i ? ILI9341_CMD_DISP_INVERSION_ON : ILI9341_CMD_DISP_INVERSION_OFF, NULL, 0);
 }
     
 void ILI9341_kbv::vertScroll(int16_t top, int16_t scrollines, int16_t offset)
 {
     int16_t bfa = HEIGHT - top - scrollines;  // bottom fixed area
     int16_t vsp;
-    vsp = top + offset; // vertical start position
+    vsp = top + offset;  // vertical start position
     if (offset < 0)
         vsp += scrollines;          //keep in unsigned range
 	CS_ACTIVE;
     WriteCmd( 0x0033);
-	WriteData(top);        //TOP
-	write16(scrollines);   //VSA
-    write16(bfa); //BFA
+	write16(top);        //TOP
+	write16(scrollines); //VSA
+    write16(bfa);        //BFA
 
-    WriteCmdData(0x0037, vsp);       //VLSP 
+    WriteCmd(0x0037)
+	write16(vsp);        //VLSP
+    CS_IDLE;	
 }
 
-#define TFTLCD_DELAY 0xFF
+#define TFTLCD_DELAY8 0xFF
 
 const uint8_t PROGMEM ILI9341_regValues_kbv[] = {
     //  (COMMAND_BYTE), n, data_bytes....
     (0x01), 0,             //ILI9341_CMD_SOFTWARE_RESET
-			TFTLCD_DELAY, 50,   // .kbv
+			TFTLCD_DELAY8, 50,   // .kbv
     (0xCF), 3,                  //ILI9341_CMD_POWER_CONTROL_B
     0x00, 0x8B, 0x30,
     (0xED), 4,                  //ILI9341_CMD_POWER_ON_SEQ_CONTROL
@@ -374,12 +323,12 @@ const uint8_t PROGMEM ILI9341_regValues_kbv[] = {
     0x00, 0x15, 0x17, 0x07, 0x11, 0x06, 0x2B, 0x56, 0x3C, 0x05, 0x10, 0x0F,
     0x3F, 0x3F, 0x0F,
     (0x11), 0,             //ILI9341_CMD_SLEEP_OUT
-			TFTLCD_DELAY, 150,   // .kbv
+			TFTLCD_DELAY8, 150,   // .kbv
     (0x29), 0,                  //ILI9341_CMD_DISPLAY_ON
 };
 		static const uint8_t ILI9341_regValues_2_4[] PROGMEM = {   // BOE 2.4"
 			0x01, 0,            // software reset
-			TFTLCD_DELAY, 50,   // .kbv
+			TFTLCD_DELAY8, 50,   // .kbv
 			0xCF, 3, 0x00, 0x81, 0x30,  //Power Control B [00 81 30]
 			0xED, 4, 0x64, 0x03, 0x12, 0x81,    //Power On Seq [55 01 23 01]
 			0xE8, 3, 0x85, 0x10, 0x78,  //Driver Timing A [04 11 7A]
@@ -399,31 +348,30 @@ const uint8_t PROGMEM ILI9341_regValues_kbv[] = {
 			0xE0, 15, 0x0f, 0x26, 0x24, 0x0b, 0x0e, 0x09, 0x54, 0xa8, 0x46, 0x0c, 0x17, 0x09, 0x0f, 0x07, 0x00,
 			0xE1, 15, 0x00, 0x19, 0x1b, 0x04, 0x10, 0x07, 0x2a, 0x47, 0x39, 0x03, 0x06, 0x06, 0x30, 0x38, 0x0f,
 			0x11, 0,            //Sleep Out
-			TFTLCD_DELAY, 150,
+			TFTLCD_DELAY8, 150,
 			0x29, 0,            //Display On
 			0x3A, 1, 0x55,      //Pixel Format [66]
 		};
 //		init_table(ILI9341_regValues_2_4, sizeof(ILI9341_regValues_2_4));   //
 
-//#define table9341 ILI9341_regValues_2_4
-#define table9341 ILI9341_regValues_kbv
+//#define tableNNNN ILI9341_regValues_2_4
+#define tableNNNN ILI9341_regValues_kbv
 
 void ILI9341_kbv::begin(uint16_t ID)
 {
     _lcd_ID = ID;
-    uint8_t *p = (uint8_t *) table9341;
-    int16_t size = sizeof(table9341);
+    uint8_t *p = (uint8_t *) tableNNNN;
+    int16_t size = sizeof(tableNNNN);
     reset();
     while (size > 0) {
 	    uint8_t cmd = pgm_read_byte(p++);
 	    uint8_t len = pgm_read_byte(p++);
-	    if (cmd == TFTLCD_DELAY) {
+	    if (cmd == TFTLCD_DELAY8) {
 		    delay(len);
 		    len = 0;
 		} else {
 		    CS_ACTIVE;
 		    WriteCmd(cmd);
-		    CD_DATA;
 		    for (uint8_t d = 0; d < len; d++) {
 			    uint8_t x = pgm_read_byte(p++);
 			    xchg8(x);
