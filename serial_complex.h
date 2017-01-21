@@ -1,32 +1,9 @@
 #define USE_NOPS_MAX 1
 
-#define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
-#define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
-#define CD_OUTPUT  PIN_OUTPUT(CD_PORT, CD_PIN)
-#define CS_ACTIVE  PIN_LOW(CS_PORT, CS_PIN);
-#define CS_IDLE    PIN_HIGH(CS_PORT, CS_PIN);
-#define CS_OUTPUT  PIN_OUTPUT(CS_PORT, CS_PIN)
-#define RESET_ACTIVE  PIN_LOW(RESET_PORT, RESET_PIN)
-#define RESET_IDLE    PIN_HIGH(RESET_PORT, RESET_PIN)
-#define RESET_OUTPUT  PIN_OUTPUT(RESET_PORT, RESET_PIN)
-#define SD_ACTIVE  PIN_LOW(SD_PORT, SD_PIN)
-#define SD_IDLE    PIN_HIGH(SD_PORT, SD_PIN)
-#define SD_OUTPUT  PIN_OUTPUT(SD_PORT, SD_PIN)
- // bit-bang macros for SDIO
-#define SCK_LO     PIN_LOW(SPI_PORT, SCK_PIN)
-#define SCK_HI     PIN_HIGH(SPI_PORT, SCK_PIN)
-#define SCK_OUT    PIN_OUTPUT(SPI_PORT, SCK_PIN)
-#define MOSI_LO    PIN_LOW(SPI_PORT, MOSI_PIN)
-#define MOSI_HI    PIN_HIGH(SPI_PORT, MOSI_PIN)
-#define MOSI_OUT   PIN_OUTPUT(SPI_PORT, MOSI_PIN)
-#define MOSI_IN    PIN_INPUT(SPI_PORT, MOSI_PIN)
-#define LED_LO     PIN_LOW(LED_PORT, LED_PIN)
-#define LED_HI     PIN_HIGH(LED_PORT, LED_PIN)
-#define LED_OUT    PIN_OUTPUT(LED_PORT, LED_PIN)
-
 #define wait_ms(ms)  delay(ms)
 #define xchg8(x)     xchg8_1(x)
 #define write16(x)   { write16_N(x, 1); }
+#define write24(x)   { write24_N(x, 1); }
 #define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); }
 #define WriteData(x) { CD_DATA; write16(x); }
 
@@ -137,6 +114,10 @@ static uint32_t readbits(uint8_t bits)
 #define NOP1 {asm("nop");}
 #define NOP2 {NOP1; NOP1;}
 #define NOP4 {NOP2; NOP2;}
+#define NOP6 {NOP4; NOP2;}
+#define NOP10 {NOP4; NOP4; NOP2;}
+#define NOP11 {NOP4; NOP4; NOP2; NOP1;}
+#define NOP16 {NOP4; NOP4; NOP4; NOP4;}
 
 #if USE_NOPS_MAX                // -1.39s (8.02s)
 static inline void write16_N(uint16_t color, int16_t n)
@@ -145,19 +126,31 @@ static inline void write16_N(uint16_t color, int16_t n)
     do {
         SPSR;
         SPDR = hi;
-        NOP4;
-        NOP4;
-        NOP4;
-        NOP4;
+        NOP16;
         SPSR;
         SPDR = lo;
-        NOP4;
-        NOP4;
-        NOP2;
-        NOP1;
+        NOP11;
     } while (--n > 0);
-    NOP4;
-    NOP2;
+    NOP6;
+    SPSR;
+    SPDR;
+}
+
+static inline void write24_N(uint16_t color, int16_t n)
+{
+	uint8_t r = color >> 8, g = (color >> 3), b = color << 3;
+    do {
+        SPSR;
+        SPDR = r;
+        NOP16;
+        SPSR;
+        SPDR = g;
+        NOP16;
+        SPSR;
+        SPDR = b;
+        NOP11;
+    } while (--n > 0);
+    NOP6;
     SPSR;
     SPDR;
 }
@@ -169,9 +162,7 @@ static inline void write8_block(uint8_t * block, int16_t n)
         SPSR;
         SPDR = c;
         c = *block++;
-        NOP4;
-        NOP4;
-        NOP2;                   //NOP1;
+        NOP10;
     } while (--n > 0);
     NOP4;
     SPSR;
@@ -193,6 +184,28 @@ static inline void write16_N(uint16_t color, int16_t n)
         NOP1;
         while ((SPSR & 0x80) == 0);
         SPDR = lo;
+    }
+    while ((SPSR & 0x80) == 0);
+}
+
+static inline void write24_N(uint16_t color, int16_t n)
+{
+	uint8_t r = color >> 8, g = (color >> 3), b = color << 3;
+    SPDR = r;
+    while ((SPSR & 0x80) == 0);
+    SPDR = g;
+    while ((SPSR & 0x80) == 0);
+    SPDR = b;
+    while (--n > 0) {
+        NOP2;
+        while ((SPSR & 0x80) == 0);
+        SPDR = r;
+        NOP1;
+        while ((SPSR & 0x80) == 0);
+        SPDR = g;
+        NOP1;
+        while ((SPSR & 0x80) == 0);
+        SPDR = b;
     }
     while ((SPSR & 0x80) == 0);
 }
