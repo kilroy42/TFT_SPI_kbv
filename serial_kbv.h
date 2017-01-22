@@ -31,11 +31,20 @@
 #include <SPI.h>                //include before write16() macro
 #warning Using Arduino SPI methods
 
-#define wait_ms(ms)  delay(ms)
+#if defined(NINEBITS)
+#define xchg8(x)     readbits(8)
+#define WriteCmd(x)  { SDIO_OUTMODE(); MOSI_LO; SCK_HI; SCK_LO; write_8(x); }
+#define WriteDat8(x) { MOSI_HI; SCK_HI; SCK_LO; write_8(x); }
+//extern void WriteDat8(uint8_t x) { MOSI_HI; SCK_HI; SCK_LO; write_8(x); }
+
+#else
 #define xchg8(x)     xchg8_1(x)
+#define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); CD_DATA; }
+#endif
+
+#define wait_ms(ms)  delay(ms)
 #define write16(x)   { write16_N(x, 1); }
 #define write24(x)   { write24_N(x, 1); }
-#define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); CD_DATA; }
 #define WriteData(x) { write16(x); }
 
 static uint8_t spibuf[16];
@@ -67,6 +76,17 @@ static uint8_t spibuf[16];
 
 static SPISettings settings(8000000, MSBFIRST, SPI_MODE0);
 
+static inline void write_8(uint8_t val)
+{
+    for (uint8_t i = 0; i < 8; i++) {   //send command
+        if (val & 0x80) MOSI_HI;
+	    else MOSI_LO;
+		SCK_HI;
+		SCK_LO;
+        val <<= 1;
+    }
+}
+
 static inline uint8_t xchg8_1(uint8_t x)
 {
 	return SPI.transfer(x);
@@ -89,7 +109,13 @@ static uint32_t readbits(uint8_t bits)
 
 static inline void write16_N(uint16_t color, int16_t n)
 {
-#if defined(ESP8266)
+#if defined(NINEBITS)
+	uint8_t hi = color >> 8, lo = color;
+	while (n-- > 0) {
+		WriteDat8(hi);
+		WriteDat8(lo);
+	}
+#elif defined(ESP8266)
     uint8_t hilo[2];
 	hilo[0] = color >> 8;
 	hilo[1] = color;
@@ -105,7 +131,14 @@ static inline void write16_N(uint16_t color, int16_t n)
 
 static inline void write24_N(uint16_t color, int16_t n)
 {
-#if defined(ESP8266)
+#if defined(NINEBITS)
+	uint8_t r = color >> 8, g = (color >> 3), b = color << 3;
+	while (n-- > 0) {
+		WriteDat8(r);
+		WriteDat8(g);
+		WriteDat8(b);
+	}
+#elif defined(ESP8266)
     uint8_t rgb[3];
 	rgb[0] = color >> 8;
 	rgb[1] = color >> 3;
@@ -123,7 +156,9 @@ static inline void write24_N(uint16_t color, int16_t n)
 
 static inline void write8_block(uint8_t * block, int16_t n)
 {
-#if defined(ESP8266)
+#if defined(NINEBITS)
+    while (n-- > 0) WriteDat8(*block++);
+#elif defined(ESP8266)
 	SPI.writeBytes(block, (uint32_t)n);
 #elif defined(__STM32F1__)
     while (n-- > 0) SPI.transfer(*block++);
