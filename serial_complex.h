@@ -4,8 +4,8 @@
 #define xchg8(x)     xchg8_1(x)
 #define write16(x)   { write16_N(x, 1); }
 #define write24(x)   { write24_N(x, 1); }
-#define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); }
-#define WriteData(x) { CD_DATA; write16(x); }
+#define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); CD_DATA; }
+#define WriteData(x) { write16(x); }
 
 static uint8_t spibuf[16];
 
