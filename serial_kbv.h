@@ -35,11 +35,15 @@
 #define xchg8(x)     readbits(8)
 #define WriteCmd(x)  { SDIO_OUTMODE(); MOSI_LO; SCK_HI; SCK_LO; write_8(x); }
 #define WriteDat8(x) { MOSI_HI; SCK_HI; SCK_LO; write_8(x); }
-//extern void WriteDat8(uint8_t x) { MOSI_HI; SCK_HI; SCK_LO; write_8(x); }
-
+#define INIT()  { CS_IDLE; RESET_IDLE; SETDDR; }
+#define SDIO_INMODE()  MOSI_IN;SCK_OUT    //no braces
+#define SDIO_OUTMODE() {MOSI_OUT;SCK_OUT;}
 #else
 #define xchg8(x)     xchg8_1(x)
 #define WriteCmd(x)  { CD_COMMAND; xchg8_1(x); CD_DATA; }
+#define INIT()  { CS_IDLE; RESET_IDLE; SETDDR; SPI.begin(); SPI.beginTransaction(settings); }
+#define SDIO_INMODE()  SPI.endTransaction(); MOSI_IN;SCK_OUT    //no braces
+#define SDIO_OUTMODE() {MOSI_OUT;SCK_OUT;SPI.beginTransaction(settings);}
 #endif
 
 #define wait_ms(ms)  delay(ms)
@@ -66,7 +70,6 @@ static uint8_t spibuf[16];
 #endif
 
 #define SETDDR  { CS_OUTPUT; CD_OUTPUT; RESET_OUTPUT; PIN_HIGH(SD_PORT, SD_PIN); PIN_OUTPUT(SD_PORT, SD_PIN); }
-#define INIT()  { CS_IDLE; RESET_IDLE; SETDDR; SPI.begin(); SPI.beginTransaction(settings); }
 
 #define PIN_LOW(p, b)        digitalWrite(b, LOW)
 #define PIN_HIGH(p, b)       digitalWrite(b, HIGH)
@@ -92,8 +95,6 @@ static inline uint8_t xchg8_1(uint8_t x)
 	return SPI.transfer(x);
 }
 
-#define SDIO_INMODE()  SPI.endTransaction(); MOSI_IN;SCK_OUT    //no braces
-#define SDIO_OUTMODE() {MOSI_OUT;SCK_OUT;SPI.beginTransaction(settings);}
 static uint32_t readbits(uint8_t bits)
 {
 	uint32_t ret = 0;
