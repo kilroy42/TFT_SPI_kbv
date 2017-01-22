@@ -1,17 +1,17 @@
 #include "ILI9481_kbv.h"
-#include "serial9_kbv.h"
+#define NINEBITS
+//#include "serial9_kbv.h"
+#include "serial_kbv.h"
 
 ILI9481_kbv::ILI9481_kbv():Adafruit_GFX(320, 480)
 {
-/*
-    INIT();
-    CS_IDLE;
-    RESET_IDLE;
-*/
 }
+
+static uint8_t done_reset;
 
 void ILI9481_kbv::reset(void)
 {
+    done_reset = 1;
     INIT();
     CS_IDLE;
     RESET_IDLE;
@@ -24,10 +24,9 @@ void ILI9481_kbv::reset(void)
 
 void ILI9481_kbv::pushCommand(uint16_t cmd, uint8_t * block, int8_t N)
 {
-    uint16_t color;
     CS_ACTIVE;
     WriteCmd(cmd);
-	write9_block(block, N);
+	write8_block(block, N);
     CS_IDLE;
 }
 
@@ -75,6 +74,7 @@ void ILI9481_kbv::pushCommand(uint16_t cmd, uint8_t * block, int8_t N)
 uint16_t ILI9481_kbv::readReg(uint16_t reg)
 {
     uint8_t h, l;
+    if (!done_reset) reset();
     CS_ACTIVE;
     WriteCmd(reg);
     CD_DATA;                    //should do a flush()
@@ -158,7 +158,7 @@ void ILI9481_kbv::drawPixel(int16_t x, int16_t y, uint16_t color)
     CS_ACTIVE;
 	WriteCmd(ILI9481_CMD_MEMORY_WRITE);
     CD_DATA;
-	write18_N(color, 1);
+	write24_N(color, 1);
     CS_IDLE;
 #else
 	spibuf[0] = (color >> 8);
@@ -211,7 +211,7 @@ void ILI9481_kbv::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t 
     CD_DATA;
 	if (h > w) { end = h; h = w; w = end; } 
     while (h-- > 0) {
-        write18_N(color, w);
+        write24_N(color, w);
     }
     CS_IDLE;
     setAddrWindow(0, 0, width() - 1, height() - 1);
@@ -227,7 +227,7 @@ void ILI9481_kbv::pushColors(uint16_t * block, int16_t n, bool first)
     CD_DATA;
     while (n-- > 0) {
         color = *block++;
-        write18(color);
+        write24(color);
     }
     CS_IDLE;
 }
@@ -245,7 +245,7 @@ void ILI9481_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
         l = pgm_read_byte(block++);
         h = pgm_read_byte(block++);
         color = h<<8 | l;
-		write18(color);
+		write24(color);
     }
     CS_IDLE;
 }
