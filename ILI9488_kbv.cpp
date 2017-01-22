@@ -22,7 +22,6 @@ void ILI9488_kbv::reset(void)
 
 void ILI9488_kbv::pushCommand(uint16_t cmd, uint8_t * block, int8_t N)
 {
-    uint16_t color;
     CS_ACTIVE;
     WriteCmd(cmd);
 	write8_block(block, N);
