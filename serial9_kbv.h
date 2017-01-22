@@ -1,7 +1,7 @@
 // this file is only used for 9-bit bidirectional ILI9481
 
 #define USE_SPICLASS
-//#define KLUDGE_328P
+#define KLUDGE_328P
 
 #define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
 #define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
@@ -29,9 +29,9 @@
 
 #define wait_ms(ms)  delay(ms)
 #define xchg8(x)     readbits(8);
-#define write18(x)   { write18_N(x, 1); }
-#define WriteCmd(x)  { SDIO_OUTMODE(); MOSI_LO; SCK_HI; SCK_LO; write8(x); }
-#define WriteDat8(x) { MOSI_HI; SCK_HI; SCK_LO; write8(x); }
+#define write24(x)   { write24_N(x, 1); }
+#define WriteCmd(x)  { SDIO_OUTMODE(); MOSI_LO; SCK_HI; SCK_LO; write_8(x); }
+#define WriteDat8(x) { MOSI_HI; SCK_HI; SCK_LO; write_8(x); }
 
 #if !defined(USE_SPICLASS)
 #include "serial_complex.h"
@@ -80,7 +80,7 @@ static uint8_t spibuf[16];
 #define SDIO_INMODE()  MOSI_IN;SCK_OUT    //no braces
 #define SDIO_OUTMODE() {MOSI_OUT;SCK_OUT;}
 
-static inline void write8(uint8_t val)
+static inline void write_8(uint8_t val)
 {
 #if defined(KLUDGE_328P)                // -90.0 sec
     SPCR = (1<<SPE)|(1<<MSTR);
@@ -113,7 +113,7 @@ static uint32_t readbits(uint8_t bits)
 	return ret;
 }
 
-static inline void write18_N(uint16_t color, int16_t n)
+static inline void write24_N(uint16_t color, int16_t n)
 {
 #if defined(KLUDGE_328P)                // -15.5 sec
 	uint8_t r = (color >> 9) | 0x80, g = (color >> 5) | 0x40, b = color | 0x20;
@@ -130,7 +130,7 @@ static inline void write18_N(uint16_t color, int16_t n)
     SCK_HI; SCK_LO;SCK_HI; SCK_LO;SCK_HI; SCK_LO;	
 	}
 #else
-	uint8_t r = color >> 8, g = (color >> 5), b = color << 3;
+	uint8_t r = color >> 8, g = (color >> 3), b = color << 3;
 	while (n-- > 0) {
 		WriteDat8(r);
 		WriteDat8(g);
@@ -139,7 +139,7 @@ static inline void write18_N(uint16_t color, int16_t n)
 #endif
 }
 
-static inline void write9_block(uint8_t * block, int16_t n)
+static inline void write8_block(uint8_t * block, int16_t n)
 {
 	while (n-- > 0) {
 		WriteDat8(*block++);
