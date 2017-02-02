@@ -77,7 +77,7 @@ static uint8_t spibuf[16];
 #define PIN_INPUT(p, b)      pinMode(b, INPUT_PULLUP)
 #define PIN_READ(p, b)       digitalRead(b)
 
-static SPISettings settings(8000000, MSBFIRST, SPI_MODE0);
+static SPISettings settings(42000000, MSBFIRST, SPI_MODE0);
 
 static inline void write_8(uint8_t val)
 {
@@ -89,10 +89,16 @@ static inline void write_8(uint8_t val)
         val <<= 1;
     }
 }
-
+#define DMA__STM32F1__
 static inline uint8_t xchg8_1(uint8_t x)
 {
+#if defined(DMA__STM32F1__)
+    uint8_t ret;
+	SPI.dmaTransfer(&x, &ret, 1);
+	return ret;
+#else
 	return SPI.transfer(x);
+#endif
 }
 
 static uint32_t readbits(uint8_t bits)
@@ -121,6 +127,25 @@ static inline void write16_N(uint16_t color, int16_t n)
 	hilo[0] = color >> 8;
 	hilo[1] = color;
 	SPI.writePattern(hilo, 2, (uint32_t)n);
+#elif defined(DMA__STM32F1__)
+  SPI.setDataSize (SPI_CR1_DFF); // Set SPI 16bit mode
+    SPI.dmaSend(&color, n, 0);
+  SPI.setDataSize (0);
+#elif defined(__STM32F1__)
+    uint8_t buf[64];
+	int cnt = (n > 32) ? 32 : n;
+	uint8_t *p = buf;
+	while (cnt--) { *p++ = color >> 8; *p++ = color; }
+	while (n > 0) {
+		cnt = (n > 32) ? 32 : n;
+		SPI.write(buf, cnt << 1);
+		n -= cnt;
+	}
+#elif defined(__STM32F1__)
+	uint8_t hilo[2];
+	hilo[0] = color >> 8;
+	hilo[1] = color;
+	while (n-- > 0) SPI.write(hilo, 2);
 #else
 	uint8_t hi = color >> 8, lo = color;
 	while (n-- > 0) {
@@ -161,6 +186,10 @@ static inline void write8_block(uint8_t * block, int16_t n)
     while (n-- > 0) WriteDat8(*block++);
 #elif defined(ESP8266)
 	SPI.writeBytes(block, (uint32_t)n);
+#elif defined(DMA__STM32F1__)
+    SPI.dmaSend(block, n, 1);
+#elif defined(__STM32F1__)
+	SPI.write(block, (uint32_t)n);
 #elif defined(__STM32F1__)
     while (n-- > 0) SPI.transfer(*block++);
 #else

@@ -1,7 +1,8 @@
 #include "ILI9481_kbv.h"
 #define NINEBITS
 //#include "serial9_kbv.h"
-#include "serial_kbv.h"
+//#include "serial_kbv.h"
+#include "serial_stm32_kbv.h"
 
 ILI9481_kbv::ILI9481_kbv():Adafruit_GFX(320, 480)
 {
