@@ -1,8 +1,8 @@
 #include "ILI9481_kbv.h"
 #define NINEBITS
 //#include "serial9_kbv.h"
-//#include "serial_kbv.h"
-#include "serial_stm32_kbv.h"
+#include "serial_kbv.h"
+//#include "serial_stm32_kbv.h"
 
 ILI9481_kbv::ILI9481_kbv():Adafruit_GFX(320, 480)
 {
@@ -233,7 +233,25 @@ void ILI9481_kbv::pushColors(uint16_t * block, int16_t n, bool first)
     CS_IDLE;
 }
 
-void ILI9481_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
+void ILI9481_kbv::pushColors(uint8_t * block, int16_t n, bool first)
+{
+    uint16_t color;
+    uint8_t h, l;
+    CS_ACTIVE;
+    if (first) {
+        WriteCmd(ILI9481_CMD_MEMORY_WRITE);
+    }
+    CD_DATA;
+    while (n-- > 0) {
+        h = (*block++);
+        l = (*block++);
+        color = (h << 8) | l;
+        write24(color);
+    }
+    CS_IDLE;
+}
+
+void ILI9481_kbv::pushColors(const uint8_t * block, int16_t n, bool first, bool bigend)
 {
     uint16_t color;
 	uint8_t h, l;
@@ -245,7 +263,7 @@ void ILI9481_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
     while (n-- > 0) {
         l = pgm_read_byte(block++);
         h = pgm_read_byte(block++);
-        color = h<<8 | l;
+        color = (bigend) ? (l << 8 ) | h : (h << 8) | l;
 		write24(color);
     }
     CS_IDLE;

@@ -20,7 +20,6 @@ class ILI9481_kbv : public Adafruit_GFX {
 //	void     WriteCmdData(uint16_t cmd, uint16_t dat);                 // public methods !!!
     void     pushCommand(uint16_t cmd, uint8_t * block, int8_t N);
 	uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3); }
-//	uint16_t readID(void) { return 0x9481; }
 	uint16_t readID(void) { return readReg32(0xBF) >> 8; }
 
 	virtual void     fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
@@ -36,7 +35,8 @@ class ILI9481_kbv : public Adafruit_GFX {
 	uint16_t readPixel(int16_t x, int16_t y) { uint16_t color; readGRAM(x, y, &color, 1, 1); return color; }
 	void     setAddrWindow(int16_t x, int16_t y, int16_t x1, int16_t y1);
 	void     pushColors(uint16_t *block, int16_t n, bool first);
-	void     pushColors(const uint8_t *block, int16_t n, bool first);
+	void     pushColors(uint8_t *block, int16_t n, bool first);
+	void     pushColors(const uint8_t *block, int16_t n, bool first, bool bigend = false);
 	void     vertScroll(int16_t top, int16_t scrollines, int16_t offset);
 	
 	protected:

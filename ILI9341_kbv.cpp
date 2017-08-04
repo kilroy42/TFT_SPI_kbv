@@ -109,16 +109,6 @@ uint16_t ILI9341_kbv::readReg(uint16_t reg, uint8_t idx)     //note that this re
     return (h << 8) | l;
 }
 
-uint32_t ILI9341_kbv::readReg32(uint16_t reg)
-{
-	uint32_t ret;
-    for (uint8_t idx = 0; idx < 4; idx++) {
-		ret <<= 8;
-		ret |= readcommand8(reg, idx);
-	}
-	return ret;
-}
-
 int16_t ILI9341_kbv::readGRAM(int16_t x, int16_t y, uint16_t * block, int16_t w, int16_t h)
 {
     uint8_t r, g, b;
@@ -236,7 +226,24 @@ void ILI9341_kbv::pushColors(uint16_t * block, int16_t n, bool first)
     CS_IDLE;
 }
 
-void ILI9341_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
+void ILI9341_kbv::pushColors(uint8_t * block, int16_t n, bool first)
+{
+    uint16_t color;
+    uint8_t h, l;
+    CS_ACTIVE;
+    if (first) {
+        WriteCmd(ILI9341_CMD_MEMORY_WRITE);
+    }
+    while (n-- > 0) {
+        h = (*block++);
+        l = (*block++);
+        color = (h << 8) | l;
+        write16(color);
+    }
+    CS_IDLE;
+}
+
+void ILI9341_kbv::pushColors(const uint8_t * block, int16_t n, bool first, bool bigend)
 {
     uint16_t color;
 	uint8_t h, l;
@@ -247,7 +254,7 @@ void ILI9341_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
     while (n-- > 0) {
         l = pgm_read_byte(block++);
         h = pgm_read_byte(block++);
-        color = h<<8 | l;
+        color = (bigend) ? (l << 8 ) | h : (h << 8) | l;
 		write16(color);
     }
     CS_IDLE;
