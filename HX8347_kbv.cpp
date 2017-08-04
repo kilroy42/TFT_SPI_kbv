@@ -310,7 +310,25 @@ void HX8347_kbv::pushColors(uint16_t * block, int16_t n, bool first)
     CS_IDLE;
 }
 
-void HX8347_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
+void HX8347_kbv::pushColors(uint8_t * block, int16_t n, bool first)
+{
+    uint16_t color;
+	uint8_t h, l;
+    CS_ACTIVE;
+    if (first) {
+        WriteCmd(HX8347G_MEMWRITE);
+    }
+    CD_DATA;
+    while (n-- > 0) {
+        h = (*block++);
+        l = (*block++);
+        color = (h << 8) | l;
+        write16(color);
+    }
+    CS_IDLE;
+}
+
+void HX8347_kbv::pushColors(const uint8_t * block, int16_t n, bool first, bool bigend)
 {
     uint16_t color;
 	uint8_t h, l;
@@ -322,7 +340,7 @@ void HX8347_kbv::pushColors(const uint8_t * block, int16_t n, bool first)
     while (n-- > 0) {
         l = pgm_read_byte(block++);
         h = pgm_read_byte(block++);
-        color = h<<8 | l;
+        color = (bigend) ? (l << 8 ) | h : (h << 8) | l;
 		write16(color);
     }
     CS_IDLE;
