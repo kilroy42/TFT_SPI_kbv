@@ -315,7 +315,7 @@ const uint8_t PROGMEM ILI9341_regValues_kbv[] = {
     0x55,
     (0xB1), 2,                  //ILI9341_CMD_FRAME_RATE_CONTROL_NORMAL
     0x00, 0x1B,
-			0xB4, 1, 0x00,      //Inversion Control [02] .kbv NLA=1, NLB=1, NLC=1  Extended anyway
+    (0xB4), 1, 0x00,      //Inversion Control [02] .kbv NLA=1, NLB=1, NLC=1  Extended anyway
     (0xB6), 2,                  //ILI9341_CMD_DISPLAY_FUNCTION_CONTROL
     0x0A, 0xA2,
     (0xF2), 1,                  //ILI9341_CMD_ENABLE_3_GAMMA_CONTROL
