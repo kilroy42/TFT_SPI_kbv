@@ -1,4 +1,17 @@
-#define USE_SPICLASS
+#if defined(__AVR_ATmega328P__) && defined(ILI9488_KBV_H_) 
+#define USE_SERIAL_COMPLEX     //optimised C code for Uno, Xmega, ...
+#endif
+#if defined(__STM32F1__)
+#define DMA__STM32F1__         //special feature of MAPLE CORE
+#endif
+//#define MY_BLUEPILL
+// MAPLE core has SPI.write(block, n)
+// ST core has only got SPI.transfer(block, n)
+// SAMD core might have SPI.transfer(block, n)
+// SAM core has got SPI.transfer(block, n)
+// so it is probably safest to have a moderate stack buffer and use transfer
+
+//ST core is ok for ILI9341 but not for ST7735X
 
 #define CD_COMMAND PIN_LOW(CD_PORT, CD_PIN)
 #define CD_DATA    PIN_HIGH(CD_PORT, CD_PIN)
@@ -24,7 +37,7 @@
 #define LED_HI     PIN_HIGH(LED_PORT, LED_PIN)
 #define LED_OUT    PIN_OUTPUT(LED_PORT, LED_PIN)
 
-#if !defined(USE_SPICLASS)
+#if defined(USE_SERIAL_COMPLEX)
 #include "serial_complex.h"
 #else
 
@@ -60,6 +73,13 @@ static uint8_t spibuf[16];
 #define SD_PIN     D4
 #define MOSI_PIN   D11
 #define SCK_PIN    D13
+#elif defined(MY_BLUEPILL)
+#define CD_PIN     PA10
+#define CS_PIN     PB12
+#define RESET_PIN  PA9
+#define SD_PIN     PA0
+#define MOSI_PIN   PB15
+#define SCK_PIN    PB13
 #else
 #define CD_PIN     9
 #define CS_PIN     10
@@ -77,7 +97,7 @@ static uint8_t spibuf[16];
 #define PIN_INPUT(p, b)      pinMode(b, INPUT_PULLUP)
 #define PIN_READ(p, b)       digitalRead(b)
 
-static SPISettings settings(42000000, MSBFIRST, SPI_MODE0);
+static SPISettings settings(8000000, MSBFIRST, SPI_MODE0);
 
 static inline void write_8(uint8_t val)
 {
@@ -89,7 +109,7 @@ static inline void write_8(uint8_t val)
         val <<= 1;
     }
 }
-#define DMA__STM32F1__
+
 static inline uint8_t xchg8_1(uint8_t x)
 {
 #if defined(DMA__STM32F1__)
@@ -141,11 +161,16 @@ static inline void write16_N(uint16_t color, int16_t n)
 		SPI.write(buf, cnt << 1);
 		n -= cnt;
 	}
-#elif defined(__STM32F1__)
-	uint8_t hilo[2];
-	hilo[0] = color >> 8;
-	hilo[1] = color;
-	while (n-- > 0) SPI.write(hilo, 2);
+#elif 1
+    uint8_t buf[64];
+	while (n > 0) {
+    	uint8_t *p = buf;
+    	int cnt = (n > 32) ? 32 : n;
+    	while (cnt--) { *p++ = color >> 8; *p++ = color; }
+		cnt = (n > 32) ? 32 : n;
+		SPI.transfer(buf, cnt << 1);
+		n -= cnt;
+	}
 #else
 	uint8_t hi = color >> 8, lo = color;
 	while (n-- > 0) {
@@ -190,8 +215,6 @@ static inline void write8_block(uint8_t * block, int16_t n)
     SPI.dmaSend(block, n, 1);
 #elif defined(__STM32F1__)
 	SPI.write(block, (uint32_t)n);
-#elif defined(__STM32F1__)
-    while (n-- > 0) SPI.transfer(*block++);
 #else
 	SPI.transfer(block, n);
 #endif
